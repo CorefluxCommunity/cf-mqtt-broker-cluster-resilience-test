@@ -1,0 +1,3 @@
+{
+    "dotnet.defaultSolution": "cf_mqtt_broker_cluster_resilience_test_tool.sln"
+}
