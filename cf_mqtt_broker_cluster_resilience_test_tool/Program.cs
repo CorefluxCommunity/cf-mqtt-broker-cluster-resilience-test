@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
+using MQTTnet.Client.Internal;
+using MQTTnet.Packets;
 using MQTTnet.Protocol;
 
 
@@ -23,6 +25,7 @@ class Program
         int clientCount = GetValidIntInput("Number of clients: ");
         int publishTimeMs = GetValidIntInput("Publish time (ms): ");
         int watchTimeSec = GetValidIntInput("Run time (s): ");
+        int behaviour = GetValidBehaviourInput("Select a behaviour option: \n\n(1) Stop at the first missed payload\n(2) Count the missed payload\n\nOption: ");
 
         Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: broker ip: {broker}:{port}, topic: {topicPrefix}\n");
 
@@ -30,8 +33,8 @@ class Program
         var elapsedSeconds = Stopwatch.StartNew();
         try
         {
-            Task clientSubscriber = Task.Run(() => StartSubscriber(broker, port, clientCount, topicPrefix, publishTimeMs, cts));
-
+            Task clientSubscriber = Task.Run(() => StartSubscriber(broker, port, clientCount, topicPrefix, publishTimeMs, behaviour, cts));
+            Console.WriteLine();
             var timer = new PeriodicTimer(TimeSpan.FromSeconds(watchTimeSec));
             while (await timer.WaitForNextTickAsync(cts.Token))
             {
@@ -41,7 +44,7 @@ class Program
 
             elapsedSeconds.Stop();
 
-            Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Finished with no payload loss. Elapsed time: {elapsedSeconds.Elapsed}\n");
+            Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Finished with a total of {SequenceErrorCount} payload loss. Elapsed time: {elapsedSeconds.Elapsed}\n");
         }
         catch (Exception)
         {
@@ -82,7 +85,22 @@ class Program
         } while (true);
     }
 
-#region publisher
+    private static int GetValidBehaviourInput(string prompt)
+    {
+        int value;
+        do
+        {
+            Console.Write(prompt);
+            string input = Console.ReadLine();
+            if (int.TryParse(input, out value) && (value == 1 || value == 2))
+                return value;
+
+            Console.WriteLine($"Invalid value. Please enter a valid behaviour option.\n");
+        } while (true);
+    }
+
+
+    #region publisher
 
     private static async void StartPublisher(string clientId, int timeMs, string broker, int port, string topicPrefix, CancellationToken cancellationToken)
     {
@@ -101,15 +119,14 @@ class Program
 
             string topic = $"{topicPrefix}{clientId}";
 
-
             int i = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
                 int payload = i % 10; // 0 - 9
 
                 /* testing the subscribers response to errors */
-                // if (clientId == "43" && i == 200)
-                //     payload = 12;
+                // if (clientId == "10" && (i == 2 || i == 487 || i == 83 || i == 569 || i == 124 || i == 2487))
+                //     payload = i + 1;
 
                 var message = new MqttApplicationMessageBuilder()
                     .WithTopic(topic)
@@ -128,7 +145,7 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Error: {ex.Message}");
+            Console.WriteLine($"\n\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Error: {ex.Source} - {ex.Message}");
         }
         finally
         {
@@ -137,11 +154,11 @@ class Program
         }
     }
 
-#endregion
+    #endregion
 
-#region subscriber
+    #region subscriber
 
-    private static async Task StartSubscriber(string broker, int port, int clientCount, string topicPrefix, int publishTimeMs, CancellationTokenSource cts)
+    private static async Task StartSubscriber(string broker, int port, int clientCount, string topicPrefix, int publishTimeMs, int behaviour, CancellationTokenSource cts)
     {
         var options = new MqttClientOptionsBuilder()
             .WithTcpServer(broker, port)
@@ -185,9 +202,11 @@ class Program
 
                    if (lastValues.Actual.Value != expectedValue)
                    {
-                       Console.WriteLine($"\n\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Sequence error on {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
                        Interlocked.Increment(ref SequenceErrorCount);
-                       cts.Cancel();
+                       Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
+
+                       if (behaviour == 1)
+                           cts.Cancel();
                    }
 
                    LastValues[topic] = (lastValues.Actual, value);
@@ -226,5 +245,5 @@ class Program
             await mqttClient.DisconnectAsync();
         }
     }
-#endregion
+    #endregion
 }
