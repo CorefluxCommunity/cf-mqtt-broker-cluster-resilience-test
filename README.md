@@ -18,7 +18,7 @@ This tool creates a user input amount of clients that connect to a cluster broke
 
 ### Running the tool
 
-The user will be prompt by the console to introduce the broker's ip address, the port, the topic prefix, the number of clients, the publish time in ms, the run time and the behaviour:
+The user will be prompt by the console to introduce the broker's ip address, the port, the topic prefix, the number of clients, the publish time in ms, the run time and the program's behaviour:
 ```
 Broker Address: 
 Port:
@@ -45,27 +45,22 @@ Option:
 |Run time |The time the program will run for, in seconds|`60`|
 |Behaviour|If the program should stop when it detects the first missed payload or if it should run and count all the instances it happens|  `2` |
 
-> <span style="color:orange;">&#9888; :</span>  Make sure to include enough time so the subscriber is able to subscribe to all topics.
-
 
 ### Output
 
 #### Running
-When the tool starts, it will write to the console the topics the subscriber subscribes to and when the publisher clients connect.
-
+When the tool starts, it will show when the subscriber connects and subscribes to the topics as the publisher clients connect to the broker cluster.
 *Example*:
 ```
 Subscriber connected.
-Subscriber subscribed to mqtt/1
-Subscriber subscribed to mqtt/2
-Subscriber subscribed to mqtt/3
-...
-
+Subscriber subscribed to <number_of_clients> topics.
 Publisher 7 connected.
 Publisher 2 connected.
 publisher 8 connected.
 ...
 ```
+
+Each topic represents a client, and the subscriber will subscribe to all topics and monitorise the changes in the 
 
 #### Failure
 
