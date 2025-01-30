@@ -26,8 +26,9 @@ class Program
         int publishTimeMs = GetValidIntInput("Publish time (ms): ");
         int watchTimeSec = GetValidIntInput("Run time (s): ");
         int behaviour = GetValidBehaviourInput("Select a behaviour option: \n\n(1) Stop at the first missed payload\n(2) Count the missed payload\n\nOption: ");
-
-        Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: broker ip: {broker}:{port}, topic: {topicPrefix}\n");
+        
+        Console.WriteLine();
+        ConsoleWrite($"broker ip: {broker}:{port}, topic: {topicPrefix}\n");
 
         var cts = new CancellationTokenSource();
         var elapsedSeconds = Stopwatch.StartNew();
@@ -43,16 +44,21 @@ class Program
             }
 
             elapsedSeconds.Stop();
+            Console.WriteLine();
 
-            Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Finished with a total of {SequenceErrorCount} payload loss. Elapsed time: {elapsedSeconds.Elapsed}\n");
+            if (SequenceErrorCount > 0)
+                ConsoleWrite($"Finished with a total of {SequenceErrorCount} payload loss. Elapsed time: {elapsedSeconds.Elapsed}\n");
+
+            else
+                ConsoleWrite($"Finished with no payload lost. Elapsed time: {elapsedSeconds.Elapsed}\n");
         }
         catch (Exception)
         {
-            Console.WriteLine($"\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Disconnecting clients...");
+            ConsoleWrite($"Disconnecting clients...\n");
         }
         finally
         {
-            Console.WriteLine("\nPress any key to close");
+            Console.WriteLine("Press any key to close");
             Console.ReadKey();
         }
     }
@@ -115,7 +121,7 @@ class Program
         try
         {
             await mqttClient.ConnectAsync(options, CancellationToken.None);
-            Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Publisher {clientId} connected.");
+            ConsoleWrite($"Publisher {clientId} connected.");
 
             string topic = $"{topicPrefix}{clientId}";
 
@@ -125,8 +131,11 @@ class Program
                 int payload = i % 10; // 0 - 9
 
                 /* testing the subscribers response to errors */
-                // if (clientId == "10" && (i == 2 || i == 487 || i == 83 || i == 569 || i == 124 || i == 2487))
-                //     payload = i + 1;
+                if (i == 2)
+                    payload = i + 2;
+
+                if (clientId == "3" && (i == 83 || i == 56))
+                    payload = i + 1;
 
                 var message = new MqttApplicationMessageBuilder()
                     .WithTopic(topic)
@@ -145,7 +154,7 @@ class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n\n[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Error: {ex.Source} - {ex.Message}");
+            ConsoleWrite($"Error: {ex.Source} - {ex.Message}");
         }
         finally
         {
@@ -154,9 +163,9 @@ class Program
         }
     }
 
-    #endregion
+#endregion
 
-    #region subscriber
+#region subscriber
 
     private static async Task StartSubscriber(string broker, int port, int clientCount, string topicPrefix, int publishTimeMs, int behaviour, CancellationTokenSource cts)
     {
@@ -168,15 +177,18 @@ class Program
 
         mqttClient.ConnectedAsync += async e =>
         {
-            Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Subscriber connected.");
-
+            ConsoleWrite($"Subscriber connected.");
+            var mqttFactory = new MqttFactory();
+            var subsOptionsBuilder = mqttFactory.CreateSubscribeOptionsBuilder();            
             // Subscribe to all publisher topics
             for (int i = 1; i <= clientCount; i++)
             {
-                string topic = $"{topicPrefix}{i}";
-                await mqttClient.SubscribeAsync(topic);
-                Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Subscriber subscribed to {topic}.");
+                subsOptionsBuilder.WithTopicFilter($"{topicPrefix}{i}");
             }
+            var mqttSubscribeOptions = subsOptionsBuilder.Build();
+
+            await mqttClient.SubscribeAsync(mqttSubscribeOptions);
+            ConsoleWrite($"Subscriber subscribed to {clientCount} topics.");
         };
 
         mqttClient.ApplicationMessageReceivedAsync += async e =>
@@ -203,7 +215,7 @@ class Program
                    if (lastValues.Actual.Value != expectedValue)
                    {
                        Interlocked.Increment(ref SequenceErrorCount);
-                       Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
+                       ConsoleWrite($"Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
 
                        if (behaviour == 1)
                            cts.Cancel();
@@ -214,7 +226,7 @@ class Program
            }
            catch (FormatException)
            {
-               Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: Non-integer value received on {topic}: {payload}");
+               ConsoleWrite($"Non-integer value received on {topic}: {payload}");
                Interlocked.Increment(ref SequenceErrorCount);
            }
 
@@ -246,4 +258,9 @@ class Program
         }
     }
     #endregion
+
+    private static void ConsoleWrite(string message)
+    {
+        Console.WriteLine($"[{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}]: {message}");
+    }
 }
