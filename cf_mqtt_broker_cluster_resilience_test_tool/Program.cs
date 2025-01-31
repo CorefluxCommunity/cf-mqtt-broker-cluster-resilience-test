@@ -156,7 +156,7 @@ class Program
             int i = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
-                int payload = i % 10; // 0 - 9
+                int payload = i % 10; /* 0 - 9 */
 
                 // /* testing the subscribers response to errors */
                 // if (i == 2)
@@ -246,9 +246,12 @@ class Program
                        //    ConsoleWrite($"Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
 
                        if (behaviour == 1)
+                       {
+                           ConsoleWrite($"Sequence error detected: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
                            cts.Cancel();
-                   }
+                       }
 
+                   }
                    LastValues[topic] = (lastValues.Actual, value);
                }
            }
