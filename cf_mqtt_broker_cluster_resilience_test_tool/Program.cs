@@ -130,12 +130,12 @@ class Program
             {
                 int payload = i % 10; // 0 - 9
 
-                /* testing the subscribers response to errors */
-                if (i == 2)
-                    payload = i + 2;
+                // /* testing the subscribers response to errors */
+                // if (i == 2)
+                //     payload = i + 2;
 
-                if (clientId == "3" && (i == 83 || i == 56))
-                    payload = i + 1;
+                // if (clientId == "3" && (i == 83 || i == 56))
+                //     payload = i + 1;
 
                 var message = new MqttApplicationMessageBuilder()
                     .WithTopic(topic)
