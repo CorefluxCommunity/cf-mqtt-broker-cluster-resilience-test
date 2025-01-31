@@ -19,16 +19,44 @@ class Program
 
     public static async Task Main(string[] args)
     {
-        string broker = GetValidInput("Broker Address: ");
-        int port = GetValidIntInput("Port: ");
-        string topicPrefix = GetValidInput("Topic prefix: ");
-        int clientCount = GetValidIntInput("Number of clients: ");
-        int publishTimeMs = GetValidIntInput("Publish time (ms): ");
-        int watchTimeSec = GetValidIntInput("Run time (s): ");
-        int behaviour = GetValidBehaviourInput("Select a behaviour option: \n\n(1) Stop at the first missed payload\n(2) Count the missed payload\n\nOption: ");
-        
+        string broker;
+        int port;
+        string topicPrefix;
+        int clientCount;
+        int publishTimeMs;
+        int watchTimeSec;
+        int behaviour;
+
+        if (args.Length < 1)
+        {
+            broker = GetValidInput("Broker Address: ");
+            port = GetValidIntInput("Port: ");
+            topicPrefix = GetValidInput("Topic prefix: ");
+            clientCount = GetValidIntInput("Number of clients: ");
+            publishTimeMs = GetValidIntInput("Publish time (ms): ");
+            watchTimeSec = GetValidIntInput("Run time (s): ");
+            behaviour = GetValidBehaviourInput("Select a behaviour option: \n\n(1) Stop at the first missed payload\n(2) Count the missed payload\n\nOption: ");
+        }
+        else if (args.Length == 7)
+        {
+            broker = args[0];
+            port = int.Parse(args[1]);
+            topicPrefix = args[2];
+            clientCount = int.Parse(args[3]);
+            publishTimeMs = int.Parse(args[4]);
+            watchTimeSec = int.Parse(args[5]);
+            behaviour = int.Parse(args[6]);
+        }
+        else
+        {
+            Console.WriteLine("Error starting the program. Invalid arguments.\n\nUsage:\n-linux:\ncf_mqtt_broker_cluster_resilience_test_tool <broker_ip> <port> <topic_prefix> <nmr_of_clients> <publish_time_ms> <run_time_s> <behaviour>\n\n-windows:\ncf_mqtt_broker_cluster_resilience_test_tool.exe <broker_ip> <port> <topic_prefix> <nmr_of_clients> <publish_time_ms> <run_time_s> <behaviour>");
+            Console.WriteLine("\n\nPress any key to close");
+            Console.ReadKey();
+            return;
+        }
+
         Console.WriteLine();
-        ConsoleWrite($"broker ip: {broker}:{port}, topic: {topicPrefix}\n");
+        ConsoleWrite($"broker ip: {broker}:{port}, topic: {topicPrefix}, {clientCount} Clients\nRunning...");
 
         var cts = new CancellationTokenSource();
         var elapsedSeconds = Stopwatch.StartNew();
@@ -121,14 +149,14 @@ class Program
         try
         {
             await mqttClient.ConnectAsync(options, CancellationToken.None);
-            ConsoleWrite($"Publisher {clientId} connected.");
+            // ConsoleWrite($"Publisher {clientId} connected.");
 
             string topic = $"{topicPrefix}{clientId}";
 
             int i = 0;
             while (!cancellationToken.IsCancellationRequested)
             {
-                int payload = i % 10; // 0 - 9
+                int payload = i % 10; /* 0 - 9 */
 
                 // /* testing the subscribers response to errors */
                 // if (i == 2)
@@ -163,9 +191,9 @@ class Program
         }
     }
 
-#endregion
+    #endregion
 
-#region subscriber
+    #region subscriber
 
     private static async Task StartSubscriber(string broker, int port, int clientCount, string topicPrefix, int publishTimeMs, int behaviour, CancellationTokenSource cts)
     {
@@ -177,9 +205,9 @@ class Program
 
         mqttClient.ConnectedAsync += async e =>
         {
-            ConsoleWrite($"Subscriber connected.");
+            // ConsoleWrite($"Subscriber connected.");
             var mqttFactory = new MqttFactory();
-            var subsOptionsBuilder = mqttFactory.CreateSubscribeOptionsBuilder();            
+            var subsOptionsBuilder = mqttFactory.CreateSubscribeOptionsBuilder();
             // Subscribe to all publisher topics
             for (int i = 1; i <= clientCount; i++)
             {
@@ -188,7 +216,7 @@ class Program
             var mqttSubscribeOptions = subsOptionsBuilder.Build();
 
             await mqttClient.SubscribeAsync(mqttSubscribeOptions);
-            ConsoleWrite($"Subscriber subscribed to {clientCount} topics.");
+            // ConsoleWrite($"Subscriber subscribed to {clientCount} topics.");
         };
 
         mqttClient.ApplicationMessageReceivedAsync += async e =>
@@ -215,12 +243,15 @@ class Program
                    if (lastValues.Actual.Value != expectedValue)
                    {
                        Interlocked.Increment(ref SequenceErrorCount);
-                       ConsoleWrite($"Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
+                       //    ConsoleWrite($"Sequence error nº{SequenceErrorCount}: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
 
                        if (behaviour == 1)
+                       {
+                           ConsoleWrite($"Sequence error detected: {topic}: Previous = {lastValues.Previous}, Actual = {lastValues.Actual}");
                            cts.Cancel();
-                   }
+                       }
 
+                   }
                    LastValues[topic] = (lastValues.Actual, value);
                }
            }
