@@ -2,7 +2,7 @@
 
 ### Description
 
-The Coreflux Cluster Resillience Test Tool provides an easy way to check for payload losses, when using the cluster. <br>
+The Coreflux Cluster Resilience Test Tool provides an easy way to check for payload losses, when using the cluster. <br>
 <br>
 This tool creates a user input amount of clients that connect to a cluster broker that then send the payload from 0-9 in user input intervals. An extra client, that subscribes to the topics the payload is being sent to from the publishers, determines if the sequence received is valid, testing the cluster's resilience.
 
